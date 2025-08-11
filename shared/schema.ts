@@ -60,12 +60,42 @@ export const vendas = pgTable("vendas", {
 });
 
 // Insert schemas
-export const insertCategoriaSchema = createInsertSchema(categorias).omit({ id: true });
-export const insertProdutoSchema = createInsertSchema(produtos).omit({ id: true });
-export const insertMesaSchema = createInsertSchema(mesas).omit({ id: true });
-export const insertComandaSchema = createInsertSchema(comandas).omit({ id: true, total: true, criadaEm: true, fechadaEm: true });
-export const insertItemComandaSchema = createInsertSchema(itensComanda).omit({ id: true, precoUnitario: true, subtotal: true });
-export const insertVendaSchema = createInsertSchema(vendas).omit({ id: true, criadaEm: true });
+export const insertCategoriaSchema = createInsertSchema(categorias, {
+  nome: z.string(),
+});
+
+export const insertProdutoSchema = createInsertSchema(produtos, {
+  nome: z.string(),
+  preco: z.string(),
+  unidadeMedida: z.enum(["unitario", "kg", "fatia"]),
+  categoriaId: z.number(),
+  controlaEstoque: z.boolean().optional(),
+  estoqueAtual: z.string().optional(),
+});
+
+export const insertMesaSchema = createInsertSchema(mesas, {
+  numero: z.number(),
+  status: z.enum(["livre", "ocupada", "reservada"]),
+});
+
+export const insertComandaSchema = createInsertSchema(comandas, {
+  mesaId: z.number().optional().nullable(),
+  clienteNome: z.string().optional().nullable(),
+});
+
+export const insertItemComandaSchema = createInsertSchema(itensComanda, {
+  comandaId: z.number(),
+  produtoId: z.number(),
+  quantidade: z.string(),
+});
+
+export const insertVendaSchema = createInsertSchema(vendas, {
+  comandaId: z.number(),
+  metodoPagamento: z.enum(["dinheiro", "cartao_credito", "cartao_debito", "pix"]),
+  valorTotal: z.string(),
+  valorRecebido: z.string().optional().nullable(),
+  troco: z.string().optional().nullable(),
+});
 
 // Types
 export type Categoria = typeof categorias.$inferSelect;
