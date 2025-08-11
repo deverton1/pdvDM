@@ -259,10 +259,20 @@ export class MemStorage implements IStorage {
 
     this.vendas.set(id, newVenda);
 
-    // Get comanda and update mesa status if applicable
+    // Close the comanda and update mesa status if applicable
     const comanda = this.comandas.get(venda.comandaId);
-    if (comanda?.mesaId) {
-      await this.updateStatusMesa(comanda.mesaId, "livre");
+    if (comanda) {
+      const updatedComanda: Comanda = {
+        ...comanda,
+        status: "fechada",
+        total: venda.valorTotal,
+        fechadaEm: new Date(),
+      };
+      this.comandas.set(comanda.id, updatedComanda);
+
+      if (updatedComanda.mesaId) {
+        await this.updateStatusMesa(updatedComanda.mesaId, "livre");
+      }
     }
 
     return newVenda;
