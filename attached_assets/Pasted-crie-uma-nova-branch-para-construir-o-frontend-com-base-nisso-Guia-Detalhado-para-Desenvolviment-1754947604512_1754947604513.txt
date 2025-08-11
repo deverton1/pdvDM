@@ -1,0 +1,76 @@
+crie uma nova branch para construir o frontend com base nisso:
+
+Guia Detalhado para Desenvolvimento do Frontend do PDV - DOCES MARA
+1. Objetivo Principal Construir a interface de usuário (UI) completa para o módulo de Ponto de Venda (PDV). A interface deve ser moderna, intuitiva e responsiva, permitindo que os funcionários da DOCES MARA gerenciem vendas de forma eficiente, desde o pedido na mesa até o pagamento e a emissão do comprovante.
+
+2. Tecnologias Recomendadas Para manter a consistência com o ecossistema existente, a sugestão é:
+
+Framework: React
+Build Tool: Vite
+Linguagem: TypeScript
+Estilização: Tailwind CSS
+Componentes UI: shadcn/ui (aproveite os componentes já existentes no projeto original para manter a identidade visual)
+Roteamento: Wouter ou React Router
+Gerenciamento de Estado da API: TanStack Query (React Query) para simplificar a comunicação com o backend.
+3. Integração com a API do Backend O backend que foi desenvolvido expõe todos os endpoints necessários sob o prefixo /api/pos.
+
+Endpoints Disponíveis:
+
+Produtos (/api/pos/produtos)
+
+GET /: Lista todos os produtos com suas categorias.
+POST /: Cria um novo produto. Corpo da requisição: { nome: string, preco: string, unidadeMedida: 'unitario'|'kg'|'fatia', categoriaId: number, controlaEstoque?: boolean, estoqueAtual?: string }
+PUT /:id: Atualiza um produto. Corpo da requisição igual ao POST.
+DELETE /:id: Deleta um produto.
+Categorias (/api/pos/categorias)
+
+GET /: Lista todas as categorias.
+POST /: Cria uma nova categoria. Corpo da requisição: { nome: string }
+Mesas (/api/pos/mesas)
+
+GET /: Lista todas as mesas e seus status ('livre', 'ocupada', 'reservada').
+PUT /:id/status: Atualiza o status de uma mesa. Corpo da requisição: { status: 'livre'|'ocupada'|'reservada' }
+Comandas (/api/pos/comandas)
+
+POST /: Abre uma nova comanda. Corpo: { mesaId?: number, clienteNome?: string }. Se mesaId for fornecido, a comanda é para uma mesa; caso contrário, é uma venda avulsa.
+GET /:id: Obtém detalhes de uma comanda, incluindo todos os seus itens e os detalhes dos produtos.
+POST /:id/itens: Adiciona um item a uma comanda. Corpo: { produtoId: number, quantidade: number }.
+PUT /:id/fechar: Fecha a comanda (calcula o total, mas não processa o pagamento).
+Vendas (/api/pos/vendas)
+
+POST /: Registra uma venda (processa o pagamento). Corpo: { comandaId: number, metodoPagamento: 'dinheiro'|'cartao_credito'|'cartao_debito'|'pix' }. Após o sucesso, o status da mesa (se houver) é automaticamente definido como 'livre'.
+Relatórios (/api/pos/relatorios/vendas)
+
+GET /?de=YYYY-MM-DD&ate=YYYY-MM-DD: Obtém um relatório de vendas para o período especificado.
+4. Estrutura de Telas e Funcionalidades
+
+Tela 1: Dashboard Principal do PDV
+
+Componente MapaDeMesas: Exibe as mesas em um grid. Cada mesa (MesaCard) deve ter uma cor diferente baseada no seu status (ex: Verde para 'livre', Laranja para 'ocupada').
+Clicar em uma mesa 'livre' deve chamar POST /api/pos/comandas com o mesaId, abrir uma nova comanda e navegar para a Tela de Comanda.
+Clicar em uma mesa 'ocupada' deve buscar a comanda aberta para aquela mesa e navegar para a Tela de Comanda.
+Botão "Nova Venda Avulsa": Chama POST /api/pos/comandas sem mesaId e navega para a Tela de Comanda.
+Acesso rápido: Links para "Gerenciar Produtos" e "Relatórios".
+Tela 2: Tela da Comanda
+
+Painel da Comanda: Mostra o número da mesa ou "Venda Avulsa". Lista os itens adicionados, permitindo remover ou editar a quantidade. Exibe o total em tempo real.
+Grid de Produtos: Exibe os produtos para venda, com busca e filtro por categoria. Clicar em um produto o adiciona à comanda. Para produtos por 'kg', um modal deve aparecer para inserir o peso.
+Botão "Fechar Conta": Chama PUT /api/pos/comandas/:id/fechar. Ao sucesso, abre o Modal de Pagamento.
+Componente 3: Modal de Pagamento
+
+Exibe o valor total a pagar.
+Botões para selecionar o método de pagamento. Para dinheiro, um campo para calcular o troco.
+Botão "Confirmar Pagamento": Chama POST /api/pos/vendas. Ao sucesso, fecha o modal e abre o Modal de Impressão.
+Componente 4: Modal de Impressão do Comprovante
+
+Componente Recibo: Um componente React com o layout do comprovante não fiscal (logo, dados da loja, itens, total, mensagem de agradecimento), estilizado para impressão com @media print.
+Botão "Imprimir": Aciona a função window.print().
+Tela 5: Gerenciamento de Produtos
+
+Uma tabela (DataTable do shadcn/ui) com todos os produtos, com botões para Editar e Deletar.
+Um botão "Adicionar Novo Produto" que abre um formulário para criação.
+Tela 6: Relatórios de Vendas
+
+Dois DatePicker (shadcn/ui) para selecionar o período.
+Um botão "Gerar Relatório" que chama a API.
+Exibe os resultados em uma tabela e, se possível, em um gráfico (usando recharts, que já está no projeto).
