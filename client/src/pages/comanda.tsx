@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ProdutoComCategoria, ComandaCompleta } from "@/lib/types";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 export default function Comanda() {
   const [location, setLocation] = useLocation();
   const [comandaId, setComandaId] = useState<number | null>(null);
-  const [comanda, setComanda] = useState<ComandaCompleta | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ProdutoComCategoria | null>(null);
   const [showWeightModal, setShowWeightModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -23,6 +22,12 @@ export default function Comanda() {
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Query para buscar dados da comanda quando comandaId estiver disponível
+  const { data: comanda, isLoading: comandaLoading } = useQuery<ComandaCompleta>({
+    queryKey: [api.getComanda(comandaId!)],
+    enabled: !!comandaId,
+  });
 
   // Parse URL parameters
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
@@ -32,8 +37,10 @@ export default function Comanda() {
 
   const createComandaMutation = useMutation({
     mutationFn: (data: any) => api.createComanda(data),
-    onSuccess: (response) => {
+    onSuccess: (response: any) => {
       setComandaId(response.id);
+      // Buscar a comanda criada para ter os dados completos
+      queryClient.invalidateQueries({ queryKey: [api.getComanda(response.id)] });
       queryClient.invalidateQueries({ queryKey: ["/api/pos/mesas"] });
       toast({
         title: "Sucesso",
@@ -81,10 +88,26 @@ export default function Comanda() {
 
   const handleProductClick = (produto: ProdutoComCategoria) => {
     if (!comandaId) {
+      if (createComandaMutation.isPending) {
+        toast({
+          title: "Aguarde",
+          description: "Criando comanda, tente novamente em instantes",
+        });
+        return;
+      }
+      
       toast({
-        title: "Erro",
-        description: "Comanda não encontrada",
+        title: "Erro", 
+        description: "Comanda não foi criada corretamente",
         variant: "destructive",
+      });
+      return;
+    }
+
+    if (addItemMutation.isPending) {
+      toast({
+        title: "Aguarde",
+        description: "Adicionando item anterior, tente novamente",
       });
       return;
     }
@@ -147,7 +170,11 @@ export default function Comanda() {
           ) : (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="text-center py-8">
-                <p className="text-gray-500">Carregando comanda...</p>
+                {createComandaMutation.isPending ? (
+                  <p className="text-gray-500">Criando comanda...</p>
+                ) : (
+                  <p className="text-gray-500">Erro ao criar comanda</p>
+                )}
               </div>
             </div>
           )}
@@ -170,14 +197,14 @@ export default function Comanda() {
       <PaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
-        comanda={comanda}
+        comanda={comanda || null}
         onPaymentSuccess={handlePaymentSuccess}
       />
 
       <ReceiptModal
         isOpen={showReceiptModal}
         onClose={handleReceiptClose}
-        comanda={comanda}
+        comanda={comanda || null}
         metodoPagamento={paymentMethod}
       />
     </div>
