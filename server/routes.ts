@@ -90,11 +90,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Comandas routes
   app.post("/api/pos/comandas", async (req, res) => {
     try {
+      console.log("POST /api/pos/comandas - Body:", req.body);
       const data = insertComandaSchema.parse(req.body);
+      console.log("Dados validados:", data);
       const comanda = await storage.createComanda(data);
+      console.log("Comanda criada:", comanda);
       res.status(201).json(comanda);
     } catch (error) {
-      res.status(400).json({ message: "Dados inválidos" });
+      console.error("Erro ao criar comanda:", error);
+      res.status(400).json({ message: "Dados inválidos", error: error instanceof Error ? error.message : String(error) });
     }
   });
 

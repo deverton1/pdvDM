@@ -36,8 +36,12 @@ export default function Comanda() {
   const isAvulsa = searchParams.get('avulsa') === 'true';
 
   const createComandaMutation = useMutation({
-    mutationFn: (data: any) => api.createComanda(data),
+    mutationFn: (data: any) => {
+      console.log("Criando comanda com dados:", data);
+      return api.createComanda(data);
+    },
     onSuccess: (response: any) => {
+      console.log("Comanda criada com sucesso:", response);
       setComandaId(response.id);
       // Buscar a comanda criada para ter os dados completos
       queryClient.invalidateQueries({ queryKey: [api.getComanda(response.id)] });
@@ -47,7 +51,8 @@ export default function Comanda() {
         description: isAvulsa ? "Nova venda avulsa iniciada" : `Comanda aberta para Mesa ${mesaId?.padStart(2, '0')}`,
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Erro ao criar comanda:", error);
       toast({
         title: "Erro",
         description: "Não foi possível abrir a comanda",
@@ -76,15 +81,18 @@ export default function Comanda() {
   });
 
   useEffect(() => {
-    if ((isNew || isAvulsa) && !comandaId) {
+    console.log("useEffect executado:", { isNew, isAvulsa, comandaId, mesaId });
+    if ((isNew || isAvulsa) && !comandaId && !createComandaMutation.isPending) {
       // Create new comanda
       const comandaData = isAvulsa ? {} : { mesaId: parseInt(mesaId!) };
+      console.log("Vai criar comanda com dados:", comandaData);
       createComandaMutation.mutate(comandaData);
     } else if (mesaId && !isNew) {
       // TODO: Find existing comanda for mesa
       // For now, we'll assume comanda exists
+      console.log("Deveria buscar comanda existente para mesa:", mesaId);
     }
-  }, [mesaId, isNew, isAvulsa, comandaId]);
+  }, [mesaId, isNew, isAvulsa, comandaId, createComandaMutation.isPending]);
 
   const handleProductClick = (produto: ProdutoComCategoria) => {
     if (!comandaId) {
