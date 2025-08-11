@@ -3,7 +3,6 @@ import { Mesa } from "@/lib/types";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Armchair, Utensils, Bookmark } from "lucide-react";
-import { useLocation } from "wouter";
 
 interface TableMapProps {
   onTableClick: (mesa: Mesa) => void;
@@ -11,7 +10,6 @@ interface TableMapProps {
 }
 
 export default function TableMap({ onTableClick, onNewSale }: TableMapProps) {
-  const [, setLocation] = useLocation();
   
   const { data: mesas = [], isLoading } = useQuery<Mesa[]>({
     queryKey: [api.getMesas()],
@@ -58,7 +56,6 @@ export default function TableMap({ onTableClick, onNewSale }: TableMapProps) {
 
   const handleTableClick = (mesa: Mesa) => {
     onTableClick(mesa);
-    setLocation(`/comanda?mesa=${mesa.id}`);
   };
 
   if (isLoading) {
