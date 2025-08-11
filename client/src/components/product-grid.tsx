@@ -20,7 +20,7 @@ export default function ProductGrid({ onProductClick }: ProductGridProps) {
 
   const filteredProducts = produtos.filter(produto => {
     const matchesSearch = produto.nome.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = !selectedCategory || produto.categoria.nome === selectedCategory;
+    const matchesCategory = !selectedCategory || selectedCategory === "all" || produto.categoria.nome === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -66,7 +66,7 @@ export default function ProductGrid({ onProductClick }: ProductGridProps) {
               <SelectValue placeholder="Todas as categorias" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Todas as categorias</SelectItem>
+              <SelectItem value="all">Todas as categorias</SelectItem>
               {categories.map(category => (
                 <SelectItem key={category} value={category}>{category}</SelectItem>
               ))}

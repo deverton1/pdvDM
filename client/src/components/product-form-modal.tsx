@@ -129,6 +129,9 @@ export default function ProductFormModal({ isOpen, onClose, produto }: ProductFo
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{produto ? "Editar Produto" : "Adicionar Produto"}</DialogTitle>
+          <p className="text-sm text-gray-500">
+            {produto ? "Modifique as informações do produto" : "Preencha as informações do novo produto"}
+          </p>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -26,7 +26,7 @@ export default function PaymentModal({ isOpen, onClose, comanda, onPaymentSucces
 
   const createVendaMutation = useMutation({
     mutationFn: (data: any) => api.createVenda(data),
-    onSuccess: (response) => {
+    onSuccess: (response: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/pos/mesas"] });
       toast({
         title: "Sucesso",
@@ -146,6 +146,7 @@ export default function PaymentModal({ isOpen, onClose, comanda, onPaymentSucces
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Processar Pagamento</DialogTitle>
+          <p className="text-sm text-gray-500">Selecione o método de pagamento e confirme a transação</p>
         </DialogHeader>
         
         <div className="space-y-4">

@@ -48,6 +48,7 @@ export default function WeightModal({ isOpen, onClose, produto, onConfirm }: Wei
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Informar Peso</DialogTitle>
+          <p className="text-sm text-gray-500">Informe o peso do produto para adicionar à comanda</p>
         </DialogHeader>
         
         {produto && (
