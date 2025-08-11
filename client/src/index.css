@@ -1,0 +1,162 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(0 0% 100%);
+  --foreground: hsl(210 25% 7.8431%);
+  --card: hsl(210 10% 98%);
+  --card-foreground: hsl(210 25% 7.8431%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(210 25% 7.8431%);
+  --primary: hsl(217 91% 60%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(210 40% 96%);
+  --secondary-foreground: hsl(210 25% 7.8431%);
+  --muted: hsl(210 40% 96%);
+  --muted-foreground: hsl(215 13% 65%);
+  --accent: hsl(210 40% 96%);
+  --accent-foreground: hsl(210 25% 7.8431%);
+  --destructive: hsl(0 84% 60%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(214 32% 91%);
+  --input: hsl(214 32% 91%);
+  --ring: hsl(217 91% 60%);
+  --chart-1: hsl(217 91% 60%);
+  --chart-2: hsl(159 100% 36%);
+  --chart-3: hsl(43 93% 56%);
+  --chart-4: hsl(147 78% 42%);
+  --chart-5: hsl(341 75% 51%);
+  --sidebar: hsl(210 10% 98%);
+  --sidebar-foreground: hsl(210 25% 7.8431%);
+  --sidebar-primary: hsl(217 91% 60%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(210 40% 96%);
+  --sidebar-accent-foreground: hsl(210 25% 7.8431%);
+  --sidebar-border: hsl(214 32% 91%);
+  --sidebar-ring: hsl(217 91% 60%);
+  --font-sans: Inter, system-ui, sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: Menlo, monospace;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: hsl(0 0% 3.9%);
+  --foreground: hsl(0 0% 98%);
+  --card: hsl(0 0% 3.9%);
+  --card-foreground: hsl(0 0% 98%);
+  --popover: hsl(0 0% 3.9%);
+  --popover-foreground: hsl(0 0% 98%);
+  --primary: hsl(217 91% 60%);
+  --primary-foreground: hsl(0 0% 100%);
+  --secondary: hsl(215 27% 17%);
+  --secondary-foreground: hsl(0 0% 98%);
+  --muted: hsl(215 27% 17%);
+  --muted-foreground: hsl(217 10% 64%);
+  --accent: hsl(215 27% 17%);
+  --accent-foreground: hsl(0 0% 98%);
+  --destructive: hsl(0 62% 30%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --border: hsl(215 27% 17%);
+  --input: hsl(215 27% 17%);
+  --ring: hsl(217 91% 60%);
+  --chart-1: hsl(217 91% 60%);
+  --chart-2: hsl(159 100% 36%);
+  --chart-3: hsl(43 93% 56%);
+  --chart-4: hsl(147 78% 42%);
+  --chart-5: hsl(341 75% 51%);
+  --sidebar: hsl(0 0% 3.9%);
+  --sidebar-foreground: hsl(0 0% 98%);
+  --sidebar-primary: hsl(217 91% 60%);
+  --sidebar-primary-foreground: hsl(0 0% 100%);
+  --sidebar-accent: hsl(215 27% 17%);
+  --sidebar-accent-foreground: hsl(0 0% 98%);
+  --sidebar-border: hsl(215 27% 17%);
+  --sidebar-ring: hsl(217 91% 60%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  html {
+    font-family: Inter, system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .mesa-livre {
+    @apply bg-emerald-50 border-emerald-200 hover:border-emerald-300;
+  }
+  
+  .mesa-livre .mesa-icon {
+    @apply bg-emerald-500;
+  }
+  
+  .mesa-livre .mesa-text {
+    @apply text-emerald-700;
+  }
+  
+  .mesa-ocupada {
+    @apply bg-amber-50 border-amber-200 hover:border-amber-300;
+  }
+  
+  .mesa-ocupada .mesa-icon {
+    @apply bg-amber-500;
+  }
+  
+  .mesa-ocupada .mesa-text {
+    @apply text-amber-700;
+  }
+  
+  .mesa-reservada {
+    @apply bg-violet-50 border-violet-200 hover:border-violet-300;
+  }
+  
+  .mesa-reservada .mesa-icon {
+    @apply bg-violet-500;
+  }
+  
+  .mesa-reservada .mesa-text {
+    @apply text-violet-700;
+  }
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  .print-only {
+    display: block !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  
+  .receipt-container {
+    width: 80mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+  }
+  
+  .receipt-container * {
+    background: white !important;
+    color: black !important;
+  }
+}
+
+.print-only {
+  display: none;
+}
