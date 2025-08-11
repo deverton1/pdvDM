@@ -40,7 +40,7 @@ export default function Dashboard() {
   };
 
   const handleNewSale = () => {
-    setLocation("/comanda?avulsa=true");
+    setLocation("/comanda/avulsa");
   };
 
   const formatCurrency = (value: string) => value;

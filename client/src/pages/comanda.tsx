@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ProdutoComCategoria, ComandaCompleta } from "@/lib/types";
 import { api } from "@/lib/api";
@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function Comanda() {
   const [location, setLocation] = useLocation();
+  const params = useParams();
   const [comandaId, setComandaId] = useState<number | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<ProdutoComCategoria | null>(null);
   const [showWeightModal, setShowWeightModal] = useState(false);
@@ -29,14 +30,15 @@ export default function Comanda() {
     enabled: !!comandaId,
   });
 
-  // Parse URL parameters
+  // Parse parameters - nova abordagem usando route params e query params
   const searchParams = new URLSearchParams(location.split('?')[1] || '');
   const mesaId = searchParams.get('mesa');
   const isNew = searchParams.get('new') === 'true';
-  const isAvulsa = searchParams.get('avulsa') === 'true';
+  const isAvulsa = params.type === 'avulsa';
   
   console.log("URL atual:", location);
-  console.log("searchParams:", Object.fromEntries(searchParams.entries()));
+  console.log("Route params:", params);
+  console.log("Query params:", Object.fromEntries(searchParams.entries()));
   console.log("Parâmetros parseados:", { mesaId, isNew, isAvulsa });
 
   const createComandaMutation = useMutation({

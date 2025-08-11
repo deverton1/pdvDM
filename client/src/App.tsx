@@ -14,7 +14,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Dashboard} />
-      <Route path="/comanda" component={Comanda} />
+      <Route path="/comanda/:type?" component={Comanda} />
       <Route path="/products" component={Products} />
       <Route path="/reports" component={Reports} />
       <Route component={NotFound} />
