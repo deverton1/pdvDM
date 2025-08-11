@@ -92,7 +92,10 @@ export class MemStorage implements IStorage {
 
   async createCategoria(categoria: InsertCategoria): Promise<Categoria> {
     const id = this.nextId++;
-    const newCategoria: Categoria = { id, ...categoria };
+    const newCategoria: Categoria = {
+      id,
+      nome: categoria.nome,
+    };
     this.categorias.set(id, newCategoria);
     return newCategoria;
   }
@@ -111,7 +114,15 @@ export class MemStorage implements IStorage {
 
   async createProduto(produto: InsertProduto): Promise<Produto> {
     const id = this.nextId++;
-    const newProduto: Produto = { id, ...produto };
+    const newProduto: Produto = {
+      id,
+      nome: produto.nome,
+      preco: produto.preco,
+      unidadeMedida: produto.unidadeMedida,
+      categoriaId: produto.categoriaId,
+      controlaEstoque: produto.controlaEstoque ?? false,
+      estoqueAtual: produto.estoqueAtual ?? null,
+    };
     this.produtos.set(id, newProduto);
     return newProduto;
   }
@@ -150,7 +161,8 @@ export class MemStorage implements IStorage {
     const id = this.nextId++;
     const newComanda: Comanda = {
       id,
-      ...comanda,
+      mesaId: comanda.mesaId ?? null,
+      clienteNome: comanda.clienteNome ?? null,
       status: "aberta",
       total: null,
       criadaEm: new Date(),
@@ -159,8 +171,8 @@ export class MemStorage implements IStorage {
     this.comandas.set(id, newComanda);
 
     // Update mesa status if applicable
-    if (comanda.mesaId) {
-      await this.updateStatusMesa(comanda.mesaId, "ocupada");
+    if (newComanda.mesaId) {
+      await this.updateStatusMesa(newComanda.mesaId, "ocupada");
     }
 
     return newComanda;
@@ -219,7 +231,9 @@ export class MemStorage implements IStorage {
 
     const newItem: ItemComanda = {
       id,
-      ...item,
+      comandaId,
+      produtoId: item.produtoId,
+      quantidade: item.quantidade,
       precoUnitario: precoUnitario.toFixed(2),
       subtotal: subtotal.toFixed(2),
     };
@@ -253,7 +267,11 @@ export class MemStorage implements IStorage {
     const id = this.nextId++;
     const newVenda: Venda = {
       id,
-      ...venda,
+      comandaId: venda.comandaId,
+      metodoPagamento: venda.metodoPagamento,
+      valorTotal: venda.valorTotal,
+      valorRecebido: venda.valorRecebido ?? null,
+      troco: venda.troco ?? null,
       criadaEm: new Date(),
     };
 
