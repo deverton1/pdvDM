@@ -36,20 +36,12 @@ export default function Comanda() {
   const isNew = searchParams.get('new') === 'true';
   const isAvulsa = params.type === 'avulsa';
   
-  console.log("URL atual:", location);
-  console.log("Route params:", params);
-  console.log("Query params:", Object.fromEntries(searchParams.entries()));
-  console.log("Parâmetros parseados:", { mesaId, isNew, isAvulsa });
+
 
   const createComandaMutation = useMutation({
-    mutationFn: (data: any) => {
-      console.log("Criando comanda com dados:", data);
-      return api.createComanda(data);
-    },
+    mutationFn: (data: any) => api.createComanda(data),
     onSuccess: (response: any) => {
-      console.log("Comanda criada com sucesso:", response);
       setComandaId(response.id);
-      // Buscar a comanda criada para ter os dados completos
       queryClient.invalidateQueries({ queryKey: [api.getComanda(response.id)] });
       queryClient.invalidateQueries({ queryKey: ["/api/pos/mesas"] });
       toast({
@@ -58,7 +50,6 @@ export default function Comanda() {
       });
     },
     onError: (error: any) => {
-      console.error("Erro ao criar comanda:", error);
       toast({
         title: "Erro",
         description: "Não foi possível abrir a comanda",
@@ -86,19 +77,16 @@ export default function Comanda() {
     },
   });
 
+  // Flag para controlar se a comanda já foi criada
+  const [comandaCriada, setComandaCriada] = useState(false);
+
   useEffect(() => {
-    console.log("useEffect executado:", { isNew, isAvulsa, comandaId, mesaId });
-    if ((isNew || isAvulsa) && !comandaId && !createComandaMutation.isPending) {
-      // Create new comanda
+    if ((isNew || isAvulsa) && !comandaId && !createComandaMutation.isPending && !comandaCriada) {
+      setComandaCriada(true);
       const comandaData = isAvulsa ? {} : { mesaId: parseInt(mesaId!) };
-      console.log("Vai criar comanda com dados:", comandaData);
       createComandaMutation.mutate(comandaData);
-    } else if (mesaId && !isNew) {
-      // TODO: Find existing comanda for mesa
-      // For now, we'll assume comanda exists
-      console.log("Deveria buscar comanda existente para mesa:", mesaId);
     }
-  }, [mesaId, isNew, isAvulsa, comandaId, createComandaMutation.isPending]);
+  }, [isNew, isAvulsa, mesaId]);
 
   const handleProductClick = (produto: ProdutoComCategoria) => {
     if (!comandaId) {
