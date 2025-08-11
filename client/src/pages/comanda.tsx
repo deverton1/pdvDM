@@ -34,6 +34,10 @@ export default function Comanda() {
   const mesaId = searchParams.get('mesa');
   const isNew = searchParams.get('new') === 'true';
   const isAvulsa = searchParams.get('avulsa') === 'true';
+  
+  console.log("URL atual:", location);
+  console.log("searchParams:", Object.fromEntries(searchParams.entries()));
+  console.log("Parâmetros parseados:", { mesaId, isNew, isAvulsa });
 
   const createComandaMutation = useMutation({
     mutationFn: (data: any) => {
