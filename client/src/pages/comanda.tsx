@@ -35,6 +35,14 @@ export default function Comanda() {
   const mesaId = searchParams.get('mesa');
   const isNew = searchParams.get('new') === 'true';
   const isAvulsa = params.type === 'avulsa';
+  const existingComandaId = searchParams.get('comanda');
+
+  // Se há um comandaId existente na URL, usar ele diretamente
+  useEffect(() => {
+    if (existingComandaId && !comandaId) {
+      setComandaId(parseInt(existingComandaId));
+    }
+  }, [existingComandaId, comandaId]);
   
 
 
@@ -81,23 +89,33 @@ export default function Comanda() {
   const [comandaCriada, setComandaCriada] = useState(false);
 
   useEffect(() => {
-    if ((isNew || isAvulsa) && !comandaId && !createComandaMutation.isPending && !comandaCriada) {
+    // Só criar nova comanda se não há uma existente e é realmente nova
+    if ((isNew || isAvulsa) && !comandaId && !existingComandaId && !createComandaMutation.isPending && !comandaCriada) {
       setComandaCriada(true);
       const comandaData = isAvulsa ? {} : { mesaId: parseInt(mesaId!) };
       createComandaMutation.mutate(comandaData);
     }
-  }, [isNew, isAvulsa, mesaId]);
+  }, [isNew, isAvulsa, mesaId, existingComandaId]);
+
+  // Invalidar queries quando comandaId estiver disponível
+  useEffect(() => {
+    if (comandaId) {
+      queryClient.invalidateQueries({ queryKey: [api.getComanda(comandaId)] });
+    }
+  }, [comandaId, queryClient]);
 
   const handleProductClick = (produto: ProdutoComCategoria) => {
-    if (!comandaId) {
-      if (createComandaMutation.isPending) {
-        toast({
-          title: "Aguarde",
-          description: "Criando comanda, tente novamente em instantes",
-        });
-        return;
-      }
-      
+    // Se a comanda ainda está sendo criada, aguardar
+    if (createComandaMutation.isPending) {
+      toast({
+        title: "Aguarde",
+        description: "Criando comanda, tente novamente em instantes",
+      });
+      return;
+    }
+
+    // Se não há comandaId e não está criando, é um erro
+    if (!comandaId && !createComandaMutation.isPending) {
       toast({
         title: "Erro", 
         description: "Comanda não foi criada corretamente",
@@ -106,10 +124,20 @@ export default function Comanda() {
       return;
     }
 
+    // Se já está adicionando outro item, aguardar
     if (addItemMutation.isPending) {
       toast({
         title: "Aguarde",
         description: "Adicionando item anterior, tente novamente",
+      });
+      return;
+    }
+
+    // Se chegou aqui mas comandaId ainda é null (edge case), aguardar
+    if (!comandaId) {
+      toast({
+        title: "Aguarde",
+        description: "Finalizando criação da comanda...",
       });
       return;
     }

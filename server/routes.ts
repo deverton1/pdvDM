@@ -111,6 +111,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/pos/comandas/mesa/:mesaId", async (req, res) => {
+    try {
+      const mesaId = parseInt(req.params.mesaId);
+      const comanda = await storage.getComandaByMesa(mesaId);
+      if (!comanda) {
+        return res.status(404).json({ message: "Comanda não encontrada para esta mesa" });
+      }
+      res.json(comanda);
+    } catch (error) {
+      res.status(500).json({ message: "Erro ao buscar comanda da mesa" });
+    }
+  });
+
   app.post("/api/pos/comandas/:id/itens", async (req, res) => {
     try {
       const comandaId = parseInt(req.params.id);

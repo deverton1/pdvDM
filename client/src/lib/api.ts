@@ -19,6 +19,7 @@ export const api = {
   // Comandas
   createComanda: (data: any) => apiRequest("POST", "/api/pos/comandas", data),
   getComanda: (id: number) => `/api/pos/comandas/${id}`,
+  getComandaByMesa: (mesaId: number) => `/api/pos/comandas/mesa/${mesaId}`,
   fecharComanda: (id: number) => apiRequest("PUT", `/api/pos/comandas/${id}/fechar`),
   addItemComanda: (comandaId: number, data: any) => 
     apiRequest("POST", `/api/pos/comandas/${comandaId}/itens`, data),
