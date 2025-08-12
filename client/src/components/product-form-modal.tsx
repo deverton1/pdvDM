@@ -1,14 +1,19 @@
-import { useState } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ProdutoComCategoria, Categoria } from "@/lib/types";
-import { api } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { insertProdutoSchema } from "@shared/schema";
+import { z } from "zod";
+import type { ProdutoComCategoria } from "@/lib/types";
 
 interface ProductFormModalProps {
   isOpen: boolean;
@@ -16,30 +21,32 @@ interface ProductFormModalProps {
   produto?: ProdutoComCategoria | null;
 }
 
-interface FormData {
-  nome: string;
-  categoriaId: string;
-  preco: string;
-  unidadeMedida: "unitario" | "kg" | "fatia";
-  controlaEstoque: boolean;
-  estoqueAtual: string;
-}
+const formSchema = insertProdutoSchema.extend({
+  preco: z.string().min(1, "Preço é obrigatório"),
+  estoqueAtual: z.string().optional(),
+});
+
+type FormData = z.infer<typeof formSchema>;
 
 export default function ProductFormModal({ isOpen, onClose, produto }: ProductFormModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isEditing = !!produto;
 
-  const [formData, setFormData] = useState<FormData>({
-    nome: produto?.nome || "",
-    categoriaId: produto?.categoriaId?.toString() || "",
-    preco: produto?.preco || "",
-    unidadeMedida: produto?.unidadeMedida || "unitario",
-    controlaEstoque: produto?.controlaEstoque || false,
-    estoqueAtual: produto?.estoqueAtual || "",
+  const { data: categorias = [] } = useQuery({
+    queryKey: [api.getCategorias()],
   });
 
-  const { data: categorias = [] } = useQuery<Categoria[]>({
-    queryKey: [api.getCategorias()],
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      nome: "",
+      preco: "",
+      unidadeMedida: "unitario",
+      categoriaId: undefined,
+      controlaEstoque: false,
+      estoqueAtual: "",
+    },
   });
 
   const createMutation = useMutation({
@@ -62,7 +69,7 @@ export default function ProductFormModal({ isOpen, onClose, produto }: ProductFo
   });
 
   const updateMutation = useMutation({
-    mutationFn: (data: any) => api.updateProduto(produto!.id, data),
+    mutationFn: ({ id, data }: { id: number; data: any }) => api.updateProduto(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.getProdutos()] });
       toast({
@@ -80,152 +87,187 @@ export default function ProductFormModal({ isOpen, onClose, produto }: ProductFo
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.nome || !formData.categoriaId || !formData.preco) {
-      toast({
-        title: "Erro",
-        description: "Preencha todos os campos obrigatórios",
-        variant: "destructive",
+  useEffect(() => {
+    if (produto && isOpen) {
+      form.reset({
+        nome: produto.nome,
+        preco: produto.preco,
+        unidadeMedida: produto.unidadeMedida,
+        categoriaId: produto.categoriaId,
+        controlaEstoque: produto.controlaEstoque || false,
+        estoqueAtual: produto.estoqueAtual || "",
       });
-      return;
+    } else if (!produto && isOpen) {
+      form.reset({
+        nome: "",
+        preco: "",
+        unidadeMedida: "unitario",
+        categoriaId: undefined,
+        controlaEstoque: false,
+        estoqueAtual: "",
+      });
     }
-
-    const submitData = {
-      nome: formData.nome,
-      categoriaId: parseInt(formData.categoriaId),
-      preco: formData.preco,
-      unidadeMedida: formData.unidadeMedida,
-      controlaEstoque: formData.controlaEstoque,
-      estoqueAtual: formData.controlaEstoque ? formData.estoqueAtual : undefined,
-    };
-
-    if (produto) {
-      updateMutation.mutate(submitData);
-    } else {
-      createMutation.mutate(submitData);
-    }
-  };
+  }, [produto, isOpen, form]);
 
   const handleClose = () => {
-    setFormData({
-      nome: "",
-      categoriaId: "",
-      preco: "",
-      unidadeMedida: "unitario",
-      controlaEstoque: false,
-      estoqueAtual: "",
-    });
+    form.reset();
     onClose();
   };
 
-  const updateFormData = (field: keyof FormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const onSubmit = (data: FormData) => {
+    const payload = {
+      ...data,
+      preco: data.preco.replace(',', '.'),
+      estoqueAtual: data.controlaEstoque ? data.estoqueAtual?.replace(',', '.') : undefined,
+    };
+
+    if (isEditing && produto) {
+      updateMutation.mutate({ id: produto.id, data: payload });
+    } else {
+      createMutation.mutate(payload);
+    }
   };
+
+  const controlaEstoque = form.watch("controlaEstoque");
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{produto ? "Editar Produto" : "Adicionar Produto"}</DialogTitle>
-          <p className="text-sm text-gray-500">
-            {produto ? "Modifique as informações do produto" : "Preencha as informações do novo produto"}
-          </p>
+          <DialogTitle>
+            {isEditing ? "Editar Produto" : "Adicionar Produto"}
+          </DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Label htmlFor="nome">Nome do Produto *</Label>
-            <Input
-              id="nome"
-              placeholder="Ex: Brigadeiro Gourmet"
-              value={formData.nome}
-              onChange={(e) => updateFormData("nome", e.target.value)}
-              required
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="nome"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome do Produto</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Ex: Brigadeiro Gourmet" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div>
-            <Label htmlFor="categoria">Categoria *</Label>
-            <Select value={formData.categoriaId} onValueChange={(value) => updateFormData("categoriaId", value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione uma categoria" />
-              </SelectTrigger>
-              <SelectContent>
-                {categorias.map(categoria => (
-                  <SelectItem key={categoria.id} value={categoria.id.toString()}>
-                    {categoria.nome}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="preco">Preço *</Label>
-              <Input
-                id="preco"
-                type="number"
-                step="0.01"
-                placeholder="0,00"
-                value={formData.preco}
-                onChange={(e) => updateFormData("preco", e.target.value)}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="unidade">Unidade</Label>
-              <Select value={formData.unidadeMedida} onValueChange={(value) => updateFormData("unidadeMedida", value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unitario">Unitário</SelectItem>
-                  <SelectItem value="kg">Kg</SelectItem>
-                  <SelectItem value="fatia">Fatia</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="controla-estoque"
-              checked={formData.controlaEstoque}
-              onCheckedChange={(checked) => updateFormData("controlaEstoque", !!checked)}
+            <FormField
+              control={form.control}
+              name="categoriaId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categoria</FormLabel>
+                  <Select onValueChange={(value) => field.onChange(parseInt(value))} value={field.value?.toString()}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma categoria" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {categorias.map((categoria: any) => (
+                        <SelectItem key={categoria.id} value={categoria.id.toString()}>
+                          {categoria.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-            <Label htmlFor="controla-estoque">Controlar estoque</Label>
-          </div>
 
-          {formData.controlaEstoque && (
-            <div>
-              <Label htmlFor="estoque">Estoque Atual</Label>
-              <Input
-                id="estoque"
-                type="number"
-                step="0.1"
-                placeholder="0"
-                value={formData.estoqueAtual}
-                onChange={(e) => updateFormData("estoqueAtual", e.target.value)}
+            <FormField
+              control={form.control}
+              name="preco"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Preço</FormLabel>
+                  <FormControl>
+                    <Input placeholder="0,00" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="unidadeMedida"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Unidade de Medida</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="unitario">Unitário</SelectItem>
+                      <SelectItem value="kg">Por Quilograma</SelectItem>
+                      <SelectItem value="fatia">Por Fatia</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="controlaEstoque"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>Controlar estoque</FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            {controlaEstoque && (
+              <FormField
+                control={form.control}
+                name="estoqueAtual"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Estoque Atual</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Quantidade em estoque" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-          )}
+            )}
 
-          <div className="flex gap-3 mt-6">
-            <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
-              Cancelar
-            </Button>
-            <Button 
-              type="submit" 
-              className="flex-1 bg-blue-500 hover:bg-blue-600"
-              disabled={createMutation.isPending || updateMutation.isPending}
-            >
-              {produto ? "Atualizar" : "Salvar"} Produto
-            </Button>
-          </div>
-        </form>
+            <div className="flex space-x-3 pt-4">
+              <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
+                Cancelar
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={createMutation.isPending || updateMutation.isPending}
+                className="flex-1"
+              >
+                {createMutation.isPending || updateMutation.isPending 
+                  ? "Salvando..." 
+                  : isEditing ? "Atualizar" : "Criar"
+                }
+              </Button>
+            </div>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

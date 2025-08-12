@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ComandaCompleta } from "@/lib/types";
-import { api } from "@/lib/api";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Banknote, CreditCard, Smartphone } from "lucide-react";
+import { CreditCard, Banknote, Smartphone, DollarSign } from "lucide-react";
+import { api } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import type { ComandaCompleta } from "@/lib/types";
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -16,195 +16,192 @@ interface PaymentModalProps {
   onPaymentSuccess: (vendaId: number) => void;
 }
 
-type PaymentMethod = "dinheiro" | "cartao_credito" | "cartao_debito" | "pix";
+type PaymentMethod = 'dinheiro' | 'cartao_credito' | 'cartao_debito' | 'pix';
 
 export default function PaymentModal({ isOpen, onClose, comanda, onPaymentSuccess }: PaymentModalProps) {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
-  const [valorRecebido, setValorRecebido] = useState("");
+  const [cashAmount, setCashAmount] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const createVendaMutation = useMutation({
-    mutationFn: (data: any) => api.createVenda(data),
+  const paymentMutation = useMutation({
+    mutationFn: (data: { comandaId: number; metodoPagamento: PaymentMethod }) => 
+      api.createVenda(data),
     onSuccess: (response: any) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/pos/mesas"] });
       toast({
-        title: "Sucesso",
-        description: "Pagamento processado com sucesso",
+        title: "Pagamento Processado",
+        description: "Venda finalizada com sucesso!",
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/pos/mesas"] });
       onPaymentSuccess(response.id);
-      handleClose();
     },
     onError: () => {
       toast({
-        title: "Erro",
+        title: "Erro no Pagamento",
         description: "Não foi possível processar o pagamento",
         variant: "destructive",
       });
     },
   });
 
-  const formatCurrency = (value: number) => {
+  const formatPrice = (price: string | number) => {
+    const num = typeof price === 'string' ? parseFloat(price) : price;
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
-      currency: 'BRL'
-    }).format(value);
+      currency: 'BRL',
+    }).format(num);
   };
 
   const calculateTotal = () => {
     if (!comanda?.itens) return 0;
-    return comanda.itens.reduce((sum, item) => sum + parseFloat(item.subtotal), 0);
+    return comanda.itens.reduce((total, item) => {
+      return total + (parseFloat(item.produto.preco) * item.quantidade);
+    }, 0);
   };
 
-  const calculateTroco = () => {
-    if (!valorRecebido || selectedMethod !== "dinheiro") return 0;
-    const recebido = parseFloat(valorRecebido);
+  const calculateChange = () => {
+    if (!cashAmount || selectedMethod !== 'dinheiro') return 0;
+    const cash = parseFloat(cashAmount.replace(",", "."));
     const total = calculateTotal();
-    return Math.max(0, recebido - total);
+    return Math.max(0, cash - total);
   };
 
-  const getMethodIcon = (method: PaymentMethod) => {
-    switch (method) {
-      case "dinheiro":
-        return <Banknote className="w-5 h-5" />;
-      case "cartao_credito":
-      case "cartao_debito":
-        return <CreditCard className="w-5 h-5" />;
-      case "pix":
-        return <Smartphone className="w-5 h-5" />;
-    }
-  };
-
-  const getMethodColor = (method: PaymentMethod) => {
-    switch (method) {
-      case "dinheiro":
-        return "text-emerald-600 bg-emerald-100";
-      case "cartao_credito":
-        return "text-blue-600 bg-blue-100";
-      case "cartao_debito":
-        return "text-purple-600 bg-purple-100";
-      case "pix":
-        return "text-teal-600 bg-teal-100";
-    }
-  };
-
-  const getMethodLabel = (method: PaymentMethod) => {
-    switch (method) {
-      case "dinheiro":
-        return "Dinheiro";
-      case "cartao_credito":
-        return "Cartão de Crédito";
-      case "cartao_debito":
-        return "Cartão de Débito";
-      case "pix":
-        return "PIX";
-    }
-  };
-
-  const handleConfirmPayment = () => {
+  const handlePayment = () => {
     if (!selectedMethod || !comanda) return;
 
-    const total = calculateTotal();
-    let vendaData: any = {
-      comandaId: comanda.id,
-      metodoPagamento: selectedMethod,
-      valorTotal: total.toFixed(2),
-    };
-
-    if (selectedMethod === "dinheiro") {
-      const recebido = parseFloat(valorRecebido);
-      if (!recebido || recebido < total) {
+    if (selectedMethod === 'dinheiro') {
+      const cash = parseFloat(cashAmount.replace(",", "."));
+      const total = calculateTotal();
+      if (cash < total) {
         toast({
-          title: "Erro",
-          description: "Valor recebido deve ser maior ou igual ao total",
+          title: "Valor Insuficiente",
+          description: "O valor em dinheiro deve ser maior ou igual ao total",
           variant: "destructive",
         });
         return;
       }
-      vendaData.valorRecebido = recebido.toFixed(2);
-      vendaData.troco = calculateTroco().toFixed(2);
     }
 
-    createVendaMutation.mutate(vendaData);
+    paymentMutation.mutate({
+      comandaId: comanda.id,
+      metodoPagamento: selectedMethod,
+    });
   };
 
   const handleClose = () => {
     setSelectedMethod(null);
-    setValorRecebido("");
+    setCashAmount("");
     onClose();
   };
 
-  const canConfirm = selectedMethod && (
-    selectedMethod !== "dinheiro" || 
-    (valorRecebido && parseFloat(valorRecebido) >= calculateTotal())
-  );
+  const paymentMethods = [
+    {
+      id: 'dinheiro' as PaymentMethod,
+      name: 'Dinheiro',
+      icon: Banknote,
+      color: 'bg-green-100 border-green-200 text-green-800 hover:bg-green-200',
+    },
+    {
+      id: 'cartao_credito' as PaymentMethod,
+      name: 'Cartão de Crédito',
+      icon: CreditCard,
+      color: 'bg-blue-100 border-blue-200 text-blue-800 hover:bg-blue-200',
+    },
+    {
+      id: 'cartao_debito' as PaymentMethod,
+      name: 'Cartão de Débito',
+      icon: DollarSign,
+      color: 'bg-purple-100 border-purple-200 text-purple-800 hover:bg-purple-200',
+    },
+    {
+      id: 'pix' as PaymentMethod,
+      name: 'PIX',
+      icon: Smartphone,
+      color: 'bg-orange-100 border-orange-200 text-orange-800 hover:bg-orange-200',
+    },
+  ];
 
-  const paymentMethods: PaymentMethod[] = ["dinheiro", "cartao_credito", "cartao_debito", "pix"];
+  if (!comanda) return null;
+
+  const total = calculateTotal();
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Processar Pagamento</DialogTitle>
-          <p className="text-sm text-gray-500">Selecione o método de pagamento e confirme a transação</p>
         </DialogHeader>
         
-        <div className="space-y-4">
-          <div className="text-center py-4 bg-gray-50 rounded-lg">
-            <p className="text-sm text-gray-600">Total a pagar</p>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(calculateTotal())}</p>
+        <div className="space-y-6">
+          {/* Total */}
+          <div className="text-center p-4 bg-gray-50 rounded-lg">
+            <p className="text-sm text-gray-600">Total a Pagar</p>
+            <p className="text-3xl font-bold text-gray-900">{formatPrice(total)}</p>
           </div>
 
+          {/* Payment Methods */}
           <div className="space-y-3">
-            {paymentMethods.map((method) => (
-              <Button
-                key={method}
-                variant="outline"
-                className={`w-full p-3 h-auto justify-start ${
-                  selectedMethod === method ? "border-blue-500 bg-blue-50" : ""
-                }`}
-                onClick={() => setSelectedMethod(method)}
-              >
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center mr-3 ${getMethodColor(method)}`}>
-                  {getMethodIcon(method)}
-                </div>
-                <span className="font-medium text-gray-900">{getMethodLabel(method)}</span>
-              </Button>
-            ))}
+            <Label>Método de Pagamento</Label>
+            <div className="grid grid-cols-2 gap-3">
+              {paymentMethods.map((method) => {
+                const Icon = method.icon;
+                return (
+                  <Button
+                    key={method.id}
+                    variant="outline"
+                    onClick={() => setSelectedMethod(method.id)}
+                    className={`h-auto p-4 flex flex-col items-center space-y-2 ${
+                      selectedMethod === method.id 
+                        ? method.color 
+                        : 'hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="w-6 h-6" />
+                    <span className="text-xs font-medium">{method.name}</span>
+                  </Button>
+                );
+              })}
+            </div>
           </div>
 
-          {selectedMethod === "dinheiro" && (
+          {/* Cash Input */}
+          {selectedMethod === 'dinheiro' && (
             <div className="space-y-3">
-              <div>
-                <Label htmlFor="valorRecebido">Valor Recebido</Label>
-                <Input
-                  id="valorRecebido"
-                  type="number"
-                  step="0.01"
-                  placeholder="0,00"
-                  value={valorRecebido}
-                  onChange={(e) => setValorRecebido(e.target.value)}
-                />
-              </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Troco:</span>
-                  <span className="font-semibold text-gray-900">{formatCurrency(calculateTroco())}</span>
+              <Label htmlFor="cash">Valor Recebido</Label>
+              <Input
+                id="cash"
+                type="text"
+                placeholder="0,00"
+                value={cashAmount}
+                onChange={(e) => setCashAmount(e.target.value)}
+                className="text-center text-lg"
+              />
+              {cashAmount && (
+                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Troco</p>
+                  <p className="text-xl font-bold text-blue-600">
+                    {formatPrice(calculateChange())}
+                  </p>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
-          <div className="flex gap-3">
+          {/* Action Buttons */}
+          <div className="flex space-x-3">
             <Button variant="outline" onClick={handleClose} className="flex-1">
               Cancelar
             </Button>
             <Button 
-              onClick={handleConfirmPayment} 
-              className="flex-1 bg-emerald-500 hover:bg-emerald-600"
-              disabled={!canConfirm || createVendaMutation.isPending}
+              onClick={handlePayment}
+              disabled={
+                !selectedMethod || 
+                paymentMutation.isPending ||
+                (selectedMethod === 'dinheiro' && (!cashAmount || parseFloat(cashAmount.replace(",", ".")) < total))
+              }
+              className="flex-1 bg-green-600 hover:bg-green-700"
             >
-              Confirmar Pagamento
+              {paymentMutation.isPending ? "Processando..." : "Confirmar Pagamento"}
             </Button>
           </div>
         </div>

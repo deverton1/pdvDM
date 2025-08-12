@@ -145,24 +145,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/pos/itens/:id", async (req, res) => {
+  app.put("/api/pos/comandas/:comandaId/itens/:itemId", async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      await storage.removeItemComanda(id);
-      res.status(204).send();
-    } catch (error) {
-      res.status(400).json({ message: "Erro ao remover item" });
-    }
-  });
-
-  app.put("/api/pos/itens/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
+      const itemId = parseInt(req.params.itemId);
       const { quantidade } = z.object({ quantidade: z.number() }).parse(req.body);
-      const item = await storage.updateQuantidadeItem(id, quantidade);
+      const item = await storage.updateQuantidadeItem(itemId, quantidade);
       res.json(item);
     } catch (error) {
       res.status(400).json({ message: "Dados inválidos" });
+    }
+  });
+
+  app.delete("/api/pos/comandas/:comandaId/itens/:itemId", async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.itemId);
+      await storage.removeItemComanda(itemId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(400).json({ message: "Erro ao remover item" });
     }
   });
 

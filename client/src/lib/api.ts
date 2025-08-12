@@ -23,9 +23,10 @@ export const api = {
   fecharComanda: (id: number) => apiRequest("PUT", `/api/pos/comandas/${id}/fechar`),
   addItemComanda: (comandaId: number, data: any) => 
     apiRequest("POST", `/api/pos/comandas/${comandaId}/itens`, data),
-  updateItemQuantidade: (itemId: number, quantidade: number) =>
-    apiRequest("PUT", `/api/pos/itens/${itemId}`, { quantidade }),
-  removeItem: (itemId: number) => apiRequest("DELETE", `/api/pos/itens/${itemId}`),
+  updateItemComanda: (comandaId: number, itemId: number, data: any) =>
+    apiRequest("PUT", `/api/pos/comandas/${comandaId}/itens/${itemId}`, data),
+  removeItemComanda: (comandaId: number, itemId: number) => 
+    apiRequest("DELETE", `/api/pos/comandas/${comandaId}/itens/${itemId}`),
 
   // Vendas
   createVenda: (data: any) => apiRequest("POST", "/api/pos/vendas", data),
