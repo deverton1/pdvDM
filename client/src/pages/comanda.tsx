@@ -67,10 +67,10 @@ export default function Comanda() {
   });
 
   const addItemMutation = useMutation({
-    mutationFn: ({ produtoId, quantidade }: { produtoId: number; quantidade: number }) =>
-      api.addItemComanda(comandaId!, { produtoId, quantidade }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.getComanda(comandaId!)] });
+    mutationFn: ({ produtoId, quantidade, comandaId: mutationComandaId }: { produtoId: number; quantidade: number; comandaId: number }) =>
+      api.addItemComanda(mutationComandaId, { produtoId, quantidade }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [api.getComanda(variables.comandaId)] });
       toast({
         title: "Sucesso",
         description: "Item adicionado à comanda",
@@ -97,6 +97,13 @@ export default function Comanda() {
     }
   }, [isNew, isAvulsa, mesaId, existingComandaId]);
 
+  // Sincronizar comandaId com dados da mutation
+  useEffect(() => {
+    if (createComandaMutation.data?.id && !comandaId) {
+      setComandaId(createComandaMutation.data.id);
+    }
+  }, [createComandaMutation.data, comandaId]);
+
   // Invalidar queries quando comandaId estiver disponível
   useEffect(() => {
     if (comandaId) {
@@ -105,6 +112,9 @@ export default function Comanda() {
   }, [comandaId, queryClient]);
 
   const handleProductClick = (produto: ProdutoComCategoria) => {
+    // Verificar se a comanda existe (usando dados da mutation se disponível)
+    const currentComandaId = comandaId || createComandaMutation.data?.id;
+    
     // Se a comanda ainda está sendo criada, aguardar
     if (createComandaMutation.isPending) {
       toast({
@@ -114,13 +124,28 @@ export default function Comanda() {
       return;
     }
 
-    // Se não há comandaId e não está criando, é um erro
-    if (!comandaId && !createComandaMutation.isPending) {
+    // Se não há comandaId e a mutation falhou
+    if (!currentComandaId && createComandaMutation.isError) {
       toast({
         title: "Erro", 
         description: "Comanda não foi criada corretamente",
         variant: "destructive",
       });
+      return;
+    }
+
+    // Se não há comandaId e não está pendente nem com erro, aguardar um pouco mais
+    if (!currentComandaId) {
+      toast({
+        title: "Aguarde",
+        description: "Finalizando criação da comanda...",
+      });
+      // Tentar novamente após um breve delay
+      setTimeout(() => {
+        if (comandaId || createComandaMutation.data?.id) {
+          handleProductClick(produto);
+        }
+      }, 500);
       return;
     }
 
@@ -133,27 +158,22 @@ export default function Comanda() {
       return;
     }
 
-    // Se chegou aqui mas comandaId ainda é null (edge case), aguardar
-    if (!comandaId) {
-      toast({
-        title: "Aguarde",
-        description: "Finalizando criação da comanda...",
-      });
-      return;
-    }
-
+    // Usar o comandaId atualizado para a operação
+    const idToUse = currentComandaId;
+    
     setSelectedProduct(produto);
     
     if (produto.unidadeMedida === "kg") {
       setShowWeightModal(true);
     } else {
-      addItemMutation.mutate({ produtoId: produto.id, quantidade: 1 });
+      addItemMutation.mutate({ produtoId: produto.id, quantidade: 1, comandaId: idToUse });
     }
   };
 
   const handleWeightConfirm = (weight: number) => {
-    if (selectedProduct && comandaId) {
-      addItemMutation.mutate({ produtoId: selectedProduct.id, quantidade: weight });
+    const currentComandaId = comandaId || createComandaMutation.data?.id;
+    if (selectedProduct && currentComandaId) {
+      addItemMutation.mutate({ produtoId: selectedProduct.id, quantidade: weight, comandaId: currentComandaId });
     }
     setShowWeightModal(false);
     setSelectedProduct(null);
