@@ -24,28 +24,26 @@ export default function Comanda() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Query para buscar dados da comanda quando comandaId estiver disponível
+  // Parse URL parameters
+  const searchParams = new URLSearchParams(location.split('?')[1] || '');
+  const mesaId = searchParams.get('mesa');
+  const existingComandaId = searchParams.get('comanda');
+  const isAvulsa = params.type === 'avulsa';
+
+  // Query para buscar dados da comanda
   const { data: comanda, isLoading: comandaLoading } = useQuery<ComandaCompleta>({
     queryKey: [api.getComanda(comandaId!)],
     enabled: !!comandaId,
   });
 
-  // Parse parameters - nova abordagem usando route params e query params
-  const searchParams = new URLSearchParams(location.split('?')[1] || '');
-  const mesaId = searchParams.get('mesa');
-  const isNew = searchParams.get('new') === 'true';
-  const isAvulsa = params.type === 'avulsa';
-  const existingComandaId = searchParams.get('comanda');
-
-  // Se há um comandaId existente na URL, usar ele diretamente
+  // Set comanda ID from URL if exists
   useEffect(() => {
     if (existingComandaId && !comandaId) {
       setComandaId(parseInt(existingComandaId));
     }
   }, [existingComandaId, comandaId]);
-  
 
-
+  // Create comanda mutation - only for cases where we don't have an existing one
   const createComandaMutation = useMutation({
     mutationFn: (data: any) => api.createComanda(data),
     onSuccess: (response: any) => {
@@ -67,10 +65,10 @@ export default function Comanda() {
   });
 
   const addItemMutation = useMutation({
-    mutationFn: ({ produtoId, quantidade, comandaId: mutationComandaId }: { produtoId: number; quantidade: number; comandaId: number }) =>
-      api.addItemComanda(mutationComandaId, { produtoId, quantidade }),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: [api.getComanda(variables.comandaId)] });
+    mutationFn: ({ produtoId, quantidade }: { produtoId: number; quantidade: number }) =>
+      api.addItemComanda(comandaId!, { produtoId, quantidade }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.getComanda(comandaId!)] });
       toast({
         title: "Sucesso",
         description: "Item adicionado à comanda",
@@ -85,71 +83,16 @@ export default function Comanda() {
     },
   });
 
-  // Flag para controlar se a comanda já foi criada
-  const [comandaCriada, setComandaCriada] = useState(false);
-
-  useEffect(() => {
-    // Só criar nova comanda se não há uma existente e é realmente nova
-    if ((isNew || isAvulsa) && !comandaId && !existingComandaId && !createComandaMutation.isPending && !comandaCriada) {
-      setComandaCriada(true);
-      const comandaData = isAvulsa ? {} : { mesaId: parseInt(mesaId!) };
-      createComandaMutation.mutate(comandaData);
-    }
-  }, [isNew, isAvulsa, mesaId, existingComandaId]);
-
-  // Sincronizar comandaId com dados da mutation
-  useEffect(() => {
-    if (createComandaMutation.data?.id && !comandaId) {
-      setComandaId(createComandaMutation.data.id);
-    }
-  }, [createComandaMutation.data, comandaId]);
-
-  // Invalidar queries quando comandaId estiver disponível
-  useEffect(() => {
-    if (comandaId) {
-      queryClient.invalidateQueries({ queryKey: [api.getComanda(comandaId)] });
-    }
-  }, [comandaId, queryClient]);
-
   const handleProductClick = (produto: ProdutoComCategoria) => {
-    // Verificar se a comanda existe (usando dados da mutation se disponível)
-    const currentComandaId = comandaId || createComandaMutation.data?.id;
-    
-    // Se a comanda ainda está sendo criada, aguardar
-    if (createComandaMutation.isPending) {
-      toast({
-        title: "Aguarde",
-        description: "Criando comanda, tente novamente em instantes",
-      });
-      return;
-    }
-
-    // Se não há comandaId e a mutation falhou
-    if (!currentComandaId && createComandaMutation.isError) {
+    if (!comandaId) {
       toast({
         title: "Erro", 
-        description: "Comanda não foi criada corretamente",
+        description: "Comanda não está disponível",
         variant: "destructive",
       });
       return;
     }
 
-    // Se não há comandaId e não está pendente nem com erro, aguardar um pouco mais
-    if (!currentComandaId) {
-      toast({
-        title: "Aguarde",
-        description: "Finalizando criação da comanda...",
-      });
-      // Tentar novamente após um breve delay
-      setTimeout(() => {
-        if (comandaId || createComandaMutation.data?.id) {
-          handleProductClick(produto);
-        }
-      }, 500);
-      return;
-    }
-
-    // Se já está adicionando outro item, aguardar
     if (addItemMutation.isPending) {
       toast({
         title: "Aguarde",
@@ -158,22 +101,18 @@ export default function Comanda() {
       return;
     }
 
-    // Usar o comandaId atualizado para a operação
-    const idToUse = currentComandaId;
-    
     setSelectedProduct(produto);
     
     if (produto.unidadeMedida === "kg") {
       setShowWeightModal(true);
     } else {
-      addItemMutation.mutate({ produtoId: produto.id, quantidade: 1, comandaId: idToUse });
+      addItemMutation.mutate({ produtoId: produto.id, quantidade: 1 });
     }
   };
 
   const handleWeightConfirm = (weight: number) => {
-    const currentComandaId = comandaId || createComandaMutation.data?.id;
-    if (selectedProduct && currentComandaId) {
-      addItemMutation.mutate({ produtoId: selectedProduct.id, quantidade: weight, comandaId: currentComandaId });
+    if (selectedProduct && comandaId) {
+      addItemMutation.mutate({ produtoId: selectedProduct.id, quantidade: weight });
     }
     setShowWeightModal(false);
     setSelectedProduct(null);
@@ -199,6 +138,28 @@ export default function Comanda() {
     return "Comanda";
   };
 
+  // Show loading state if we don't have a comanda ID yet
+  if (!comandaId) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">{getTitle()}</h2>
+            <p className="text-gray-600">Carregando comanda...</p>
+          </div>
+          <Button variant="ghost" onClick={() => setLocation("/")} className="text-gray-600 hover:text-gray-900">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Voltar ao Dashboard
+          </Button>
+        </div>
+        
+        <div className="flex items-center justify-center h-64">
+          <div className="text-lg text-gray-600">Carregando comanda...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -215,19 +176,7 @@ export default function Comanda() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Order Panel */}
         <div className="lg:col-span-1">
-          {comandaId ? (
-            <OrderPanel comandaId={comandaId} onCloseOrder={handleCloseOrder} />
-          ) : (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="text-center py-8">
-                {createComandaMutation.isPending ? (
-                  <p className="text-gray-500">Criando comanda...</p>
-                ) : (
-                  <p className="text-gray-500">Erro ao criar comanda</p>
-                )}
-              </div>
-            </div>
-          )}
+          <OrderPanel comandaId={comandaId} onCloseOrder={handleCloseOrder} />
         </div>
 
         {/* Products Grid */}

@@ -5,6 +5,8 @@ This is a Point of Sale (PDV) system called "DOCES MARA" - a complete web applic
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
+Focus on clean, robust implementation following exact specifications.
+Prioritize functionality over complex error handling - keep logic simple and direct.
 
 # System Architecture
 
