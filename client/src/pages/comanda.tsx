@@ -30,19 +30,6 @@ export default function Comanda() {
   const existingComandaId = searchParams.get('comanda');
   const isAvulsa = params.type === 'avulsa';
 
-  // Query para buscar dados da comanda
-  const { data: comanda, isLoading: comandaLoading } = useQuery<ComandaCompleta>({
-    queryKey: [api.getComanda(comandaId!)],
-    enabled: !!comandaId,
-  });
-
-  // Set comanda ID from URL if exists
-  useEffect(() => {
-    if (existingComandaId && !comandaId) {
-      setComandaId(parseInt(existingComandaId));
-    }
-  }, [existingComandaId, comandaId]);
-
   // Create comanda mutation - only for cases where we don't have an existing one
   const createComandaMutation = useMutation({
     mutationFn: (data: any) => api.createComanda(data),
@@ -63,6 +50,25 @@ export default function Comanda() {
       });
     },
   });
+
+  // Query para buscar dados da comanda
+  const { data: comanda, isLoading: comandaLoading } = useQuery<ComandaCompleta>({
+    queryKey: [api.getComanda(comandaId!)],
+    enabled: !!comandaId,
+  });
+
+  // Set comanda ID from URL or create new one
+  useEffect(() => {
+    if (existingComandaId && !comandaId) {
+      setComandaId(parseInt(existingComandaId));
+    } else if (!existingComandaId && !comandaId && !createComandaMutation.isPending) {
+      // Auto-create comanda if none exists
+      const comandaData = isAvulsa 
+        ? { mesaId: null } 
+        : { mesaId: mesaId ? parseInt(mesaId) : null };
+      createComandaMutation.mutate(comandaData);
+    }
+  }, [existingComandaId, comandaId, mesaId, isAvulsa, createComandaMutation.isPending]);
 
   const addItemMutation = useMutation({
     mutationFn: ({ produtoId, quantidade }: { produtoId: number; quantidade: number }) =>

@@ -20,7 +20,7 @@ export default function ProductGrid({ onProductClick }: ProductGridProps) {
     queryKey: [api.getProdutos()],
   });
 
-  const { data: categorias = [] } = useQuery({
+  const { data: categorias = [] } = useQuery<any[]>({
     queryKey: [api.getCategorias()],
   });
 
